@@ -8,3 +8,11 @@ select *
 from entries
 where id = $1
 limit 1;
+
+-- name: ListEntries :many
+select *
+from entries
+where account_id = $1 
+order by id
+limit $2
+offset $3;

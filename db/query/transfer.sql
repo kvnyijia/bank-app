@@ -8,3 +8,11 @@ select *
 from transfers
 where id = $1
 limit 1;
+
+-- name: ListTarnsfer :many
+select *
+from transfers
+where from_account_id = $1 and to_account_id = $2
+order by id
+limit $3
+offset $4;

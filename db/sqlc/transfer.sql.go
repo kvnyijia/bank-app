@@ -53,3 +53,53 @@ func (q *Queries) GetTransfer(ctx context.Context, id int64) (Transfer, error) {
 	)
 	return i, err
 }
+
+const listTarnsfer = `-- name: ListTarnsfer :many
+select id, from_account_id, to_account_id, amount, created_at
+from transfers
+where from_account_id = $1 and to_account_id = $2
+order by id
+limit $3
+offset $4
+`
+
+type ListTarnsferParams struct {
+	FromAccountID int64 `json:"from_account_id"`
+	ToAccountID   int64 `json:"to_account_id"`
+	Limit         int32 `json:"limit"`
+	Offset        int32 `json:"offset"`
+}
+
+func (q *Queries) ListTarnsfer(ctx context.Context, arg ListTarnsferParams) ([]Transfer, error) {
+	rows, err := q.db.QueryContext(ctx, listTarnsfer,
+		arg.FromAccountID,
+		arg.ToAccountID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Transfer
+	for rows.Next() {
+		var i Transfer
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromAccountID,
+			&i.ToAccountID,
+			&i.Amount,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
