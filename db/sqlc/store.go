@@ -91,35 +91,38 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			return err
 		}
 
-		// Get account -> update its balance
-		// fmt.Println(txName, "create account 1")
-		// account1, err := q.GetAccountForUpdate(ctx, arg.FromAccountID)
-		// if err != nil {
-		// 	return err
-		// }
+		if arg.FromAccountID < arg.ToAccountID {
+			result.FromAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+				ID:     arg.FromAccountID,
+				Amount: -arg.Amount,
+			})
+			if err != nil {
+				return err
+			}
 
-		fmt.Println(txName, "update account 1")
-		result.FromAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
-			ID:     arg.FromAccountID,
-			Amount: -arg.Amount,
-		})
-		if err != nil {
-			return err
-		}
+			result.ToAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+				ID:     arg.ToAccountID,
+				Amount: arg.Amount,
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			result.ToAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+				ID:     arg.ToAccountID,
+				Amount: arg.Amount,
+			})
+			if err != nil {
+				return err
+			}
 
-		// fmt.Println(txName, "create account 2")
-		// account2, err := q.GetAccountForUpdate(ctx, arg.ToAccountID)
-		// if err != nil {
-		// 	return err
-		// }
-
-		fmt.Println(txName, "update account 2")
-		result.ToAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
-			ID:     arg.ToAccountID,
-			Amount: arg.Amount,
-		})
-		if err != nil {
-			return err
+			result.FromAccount, err = q.UpdateAccountBalance(ctx, UpdateAccountBalanceParams{
+				ID:     arg.FromAccountID,
+				Amount: -arg.Amount,
+			})
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
