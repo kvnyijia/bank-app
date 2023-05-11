@@ -9,26 +9,33 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	mockdb "github.com/kvnyijia/bank-app/db/mock"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
+	"github.com/kvnyijia/bank-app/token"
 	"github.com/kvnyijia/bank-app/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetAccount(t *testing.T) {
-	account := randomAccount()
+	user, _ := randomUser(t)
+	account := randomAccount(user.Username)
 
 	testCases := []struct {
 		name          string
 		accountID     int64
+		setupAuth     func(t *testing.T, req *http.Request, tokenMaker token.Maker)
 		buildStubs    func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name:      "OK",
 			accountID: account.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenMaker token.Maker) {
+				addAuth(t, req, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
+			},
 			buildStubs: func(store *mockdb.MockStore) {
 				// Build stubs for mock store, which we only care about GetAcount(), which is the only methods will be used by /accounts handler
 				store.EXPECT().
@@ -42,8 +49,44 @@ func TestGetAccount(t *testing.T) {
 			},
 		},
 		{
+			name:      "UnauthorizedUser",
+			accountID: account.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenMaker token.Maker) {
+				addAuth(t, req, tokenMaker, authorizationTypeBearer, "unauthorized_user", time.Minute)
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				// Build stubs for mock store, which we only care about GetAcount(), which is the only methods will be used by /accounts handler
+				store.EXPECT().
+					GetAccount(gomock.Any(), gomock.Eq(account.ID)).
+					Times(1).            // How many times does this func should be called
+					Return(account, nil) // Tell gomock to return some values (account value & nil err), this should match with GetAccount() in querier.go
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+		},
+		{
+			name:      "NoAuthorization",
+			accountID: account.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenMaker token.Maker) {
+				// The client does not provide auth
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				// Build stubs for mock store, which we only care about GetAcount(), which is the only methods will be used by /accounts handler
+				store.EXPECT().
+					GetAccount(gomock.Any(), gomock.Any()).
+					Times(0) // The req should be abort in the middleware, so it won't reach the handler
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			},
+		},
+		{
 			name:      "NotFound",
 			accountID: account.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenMaker token.Maker) {
+				addAuth(t, req, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
+			},
 			buildStubs: func(store *mockdb.MockStore) {
 				// Build stubs for mock store, which we only care about GetAcount(), which is the only methods will be used by /accounts handler
 				store.EXPECT().
@@ -58,6 +101,9 @@ func TestGetAccount(t *testing.T) {
 		{
 			name:      "InternalError",
 			accountID: account.ID,
+			setupAuth: func(t *testing.T, req *http.Request, tokenMaker token.Maker) {
+				addAuth(t, req, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
+			},
 			buildStubs: func(store *mockdb.MockStore) {
 				// Build stubs for mock store, which we only care about GetAcount(), which is the only methods will be used by /accounts handler
 				store.EXPECT().
@@ -72,6 +118,9 @@ func TestGetAccount(t *testing.T) {
 		{
 			name:      "InvalidID",
 			accountID: 0, // Cuz the min ID should be 1
+			setupAuth: func(t *testing.T, req *http.Request, tokenMaker token.Maker) {
+				addAuth(t, req, tokenMaker, authorizationTypeBearer, user.Username, time.Minute)
+			},
 			buildStubs: func(store *mockdb.MockStore) {
 				// Build stubs for mock store, which we only care about GetAcount(), which is the only methods will be used by /accounts handler
 				store.EXPECT().
@@ -103,6 +152,7 @@ func TestGetAccount(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, url, nil) // The req body is nil, cuz it's GET req
 			require.NoError(t, err)
 
+			tc.setupAuth(t, req, server.tokenMaker)
 			server.router.ServeHTTP(recorder, req) // Send our API req thru the server router, and reocerder records it
 			tc.checkResponse(t, recorder)
 		})
@@ -110,10 +160,10 @@ func TestGetAccount(t *testing.T) {
 	}
 }
 
-func randomAccount() db.Account {
+func randomAccount(owner string) db.Account {
 	return db.Account{
 		ID:       util.RandomInt(1, 1000),
-		Owner:    util.RandomOwner(),
+		Owner:    owner,
 		Balance:  util.RandomMoney(),
 		Currency: util.RandomCurrency(),
 	}
