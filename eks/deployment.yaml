@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bank-app-api-deployment
+  labels:
+    app: bank-app-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bank-app-api
+  template:
+    metadata:
+      labels:
+        app: bank-app-api
+    spec:
+      containers:
+      - name: bank-app-api
+        image: 322299679673.dkr.ecr.us-east-2.amazonaws.com/bank-app:latest
+        imagePullPolicy: Always # Ensure the k8s will always pull the latest image from ECR before deploying new containers
+        ports:
+        - containerPort: 8080
