@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
       - name: bank-app-api
-        image: 322299679673.dkr.ecr.us-east-2.amazonaws.com/bank-app:d3677134c43c0a48cc4d4892eb6ba75cb10a8330
+        image: 322299679673.dkr.ecr.us-east-2.amazonaws.com/bank-app:latest
+        imagePullPolicy: Always # Ensure the k8s will always pull the latest image from ECR before deploying new containers
         ports:
         - containerPort: 8080
