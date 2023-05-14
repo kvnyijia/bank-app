@@ -9,6 +9,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: bank-app-ingress
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt # Should match with what is defined in issuer.yaml
 spec:
   ingressClassName: nginx-class # Defined above
   rules:
@@ -22,3 +24,7 @@ spec:
             name: bank-app-api-service
             port:
               number: 80
+  # tls:
+  # - hosts:
+  #   - api.YOUR-CUSTOM-DOMAIN.org  # The same with the host name defined above
+  # secretName: bank-app-api-cert
