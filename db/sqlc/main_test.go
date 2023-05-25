@@ -10,7 +10,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var testQueries *Queries
+var testQueries *Queries // `type Queries` is defined in db/sqlc/db.go
 var testDB *sql.DB
 
 func TestMain(m *testing.M) {
@@ -19,12 +19,13 @@ func TestMain(m *testing.M) {
 		log.Fatal("cannot load config:", err)
 	}
 
+	// Create a new connection to the db for unit tests
 	testDB, err = sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {
 		log.Fatal("cannot connect to db:", err)
 	}
 
-	testQueries = New(testDB)
+	testQueries = New(testDB) // `func New(db DBTX) *Queries` is defined in db/sqlc/db.go
 
 	os.Exit(m.Run())
 }

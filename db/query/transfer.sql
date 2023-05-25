@@ -12,7 +12,7 @@ limit 1;
 -- name: ListTarnsfer :many
 select *
 from transfers
-where from_account_id = $1 and to_account_id = $2
+where from_account_id = $1 or to_account_id = $2
 order by id
 limit $3
 offset $4;

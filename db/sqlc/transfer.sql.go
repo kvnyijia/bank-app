@@ -57,7 +57,7 @@ func (q *Queries) GetTransfer(ctx context.Context, id int64) (Transfer, error) {
 const listTarnsfer = `-- name: ListTarnsfer :many
 select id, from_account_id, to_account_id, amount, created_at
 from transfers
-where from_account_id = $1 and to_account_id = $2
+where from_account_id = $1 or to_account_id = $2
 order by id
 limit $3
 offset $4
