@@ -42,6 +42,7 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 
 func (server *Server) setupRouter() {
 	router := gin.Default()
+	router.Use(CORSMiddleware())
 
 	// Add routes to router
 	router.POST("/users", server.createUser)

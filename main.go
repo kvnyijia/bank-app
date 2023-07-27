@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/kvnyijia/bank-app/api"
@@ -11,6 +12,7 @@ import (
 )
 
 func main() {
+	fmt.Println(">>> Running main.go .......")
 	config, err := util.LoadConfig(".")
 	if err != nil {
 		log.Fatal("cannot load config:", err)
@@ -27,6 +29,7 @@ func main() {
 		log.Fatal("cannot create server:", err)
 	}
 
+	fmt.Println(">>> Running server .......")
 	err = server.Start(config.ServerAddress)
 	if err != nil {
 		log.Fatal("cannot start server:", err)
