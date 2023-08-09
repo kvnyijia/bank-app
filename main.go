@@ -4,11 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 
-	"github.com/kvnyijia/bank-app/api"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
+	mygrpc "github.com/kvnyijia/bank-app/grpc"
+	"github.com/kvnyijia/bank-app/pb"
 	"github.com/kvnyijia/bank-app/util"
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -24,14 +28,37 @@ func main() {
 	}
 
 	store := db.NewStore(conn)
-	server, err := api.NewServer(config, store)
+
+	// HTTP server using Gin
+	// server, err := api.NewServer(config, store)
+	// if err != nil {
+	// 	log.Fatal("cannot create server:", err)
+	// }
+
+	// fmt.Println(">>> Running server .......")
+	// err = server.Start(config.ServerAddress)
+	// if err != nil {
+	// 	log.Fatal("cannot start server:", err)
+	// }
+
+	// gRPC server
+	server, err := mygrpc.NewServer(config, store)
 	if err != nil {
-		log.Fatal("cannot create server:", err)
+		log.Fatal(">>> cannot create server", err)
 	}
 
-	fmt.Println(">>> Running server .......")
-	err = server.Start(config.ServerAddress)
+	grpcServer := grpc.NewServer()
+	pb.RegisterBankAppServer(grpcServer, server)
+	reflection.Register(grpcServer)
+
+	listener, err := net.Listen("tcp", config.GRPCServerAddress)
 	if err != nil {
-		log.Fatal("cannot start server:", err)
+		log.Fatal(">>> cannot create lisener")
+	}
+
+	log.Printf(">>> start gRPC server at %s", listener.Addr().String())
+	err = grpcServer.Serve(listener)
+	if err != nil {
+		log.Fatal(">>> cannot start gRPC server")
 	}
 }
