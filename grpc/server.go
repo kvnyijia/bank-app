@@ -3,7 +3,6 @@ package grpc
 import (
 	"fmt"
 
-	"github.com/gin-gonic/gin"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
 	"github.com/kvnyijia/bank-app/pb"
 	"github.com/kvnyijia/bank-app/token"
@@ -16,7 +15,6 @@ type Server struct {
 	config     util.Config
 	store      db.Store
 	tokenMaker token.Maker
-	router     *gin.Engine
 }
 
 // Creates a new gRPC server
@@ -33,13 +31,4 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	}
 
 	return server, nil
-}
-
-// Start to run the HTTP server on an address
-func (server *Server) Start(address string) error {
-	return server.router.Run(address)
-}
-
-func errorResponse(err error) gin.H {
-	return gin.H{"error": err.Error()}
 }
