@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
 	mygrpc "github.com/kvnyijia/bank-app/grpc"
 	"github.com/kvnyijia/bank-app/pb"
@@ -41,6 +44,11 @@ func main() {
 	// 	log.Fatal("cannot start server:", err)
 	// }
 
+	go runGRPCgatewayServer(config, store)
+	runGRPCServer(config, store)
+}
+
+func runGRPCServer(config util.Config, store db.Store) {
 	// gRPC server
 	server, err := mygrpc.NewServer(config, store)
 	if err != nil {
@@ -60,5 +68,38 @@ func main() {
 	err = grpcServer.Serve(listener)
 	if err != nil {
 		log.Fatal(">>> cannot start gRPC server")
+	}
+}
+
+func runGRPCgatewayServer(config util.Config, store db.Store) {
+	// gRPC server
+	server, err := mygrpc.NewServer(config, store)
+	if err != nil {
+		log.Fatal(">>> cannot create server", err)
+	}
+
+	grpcMux := runtime.NewServeMux()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = pb.RegisterBankAppHandlerServer(ctx, grpcMux, server)
+	if err != nil {
+		log.Fatal(">>> cannot register handler server:", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", grpcMux)
+
+	listener, err := net.Listen("tcp", config.ServerAddress)
+	if err != nil {
+		log.Fatal(">>> cannot create lisener: ", err)
+	}
+
+	log.Printf(">>> start gRPC Gateway (HTTP) server at %s", listener.Addr().String())
+	err = http.Serve(listener, mux)
+	// err = http.Serve(listener, grpcMux)
+	if err != nil {
+		log.Fatal(">>> cannot start gRPC Gateway (HTTP) server: ", err)
 	}
 }
