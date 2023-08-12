@@ -7,11 +7,16 @@ import (
 	"github.com/kvnyijia/bank-app/pb"
 	"github.com/kvnyijia/bank-app/util"
 	"github.com/lib/pq"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
+	violations := validateCreateUserRequest(req)
+	if violations != nil {
+		return nil, invalidArgErr(violations)
+	}
 	// Hash the given password
 	hashedPassword, err := util.HashPassword(req.GetPassword())
 	if err != nil {
@@ -40,4 +45,21 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 		User: convertUser(user),
 	}
 	return res, nil
+}
+
+func validateCreateUserRequest(req *pb.CreateUserRequest) []*errdetails.BadRequest_FieldViolation {
+	var arr []*errdetails.BadRequest_FieldViolation
+	if err := ValidateUsername(req.GetUsername()); err != nil {
+		arr = append(arr, fieldViolation("username", err))
+	}
+	if err := ValidatePassword(req.GetPassword()); err != nil {
+		arr = append(arr, fieldViolation("password", err))
+	}
+	if err := ValidateFullname(req.GetFullName()); err != nil {
+		arr = append(arr, fieldViolation("full_name", err))
+	}
+	if err := ValidateEmail(req.GetEmail()); err != nil {
+		arr = append(arr, fieldViolation("email", err))
+	}
+	return arr
 }
