@@ -18,6 +18,9 @@ import (
 	_ "github.com/lib/pq"
 
 	// "github.com/rakyll/statik/fs"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -33,6 +36,8 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot connect to db:", err)
 	}
+
+	runDBMigration(config.DBMigration, config.DBSource)
 
 	store := db.NewStore(conn)
 
@@ -114,4 +119,15 @@ func runGRPCgatewayServer(config util.Config, store db.Store) {
 	if err != nil {
 		log.Fatal(">>> cannot start gRPC Gateway (HTTP) server: ", err)
 	}
+}
+
+func runDBMigration(dbMigration string, dbSource string) {
+	migration, err := migrate.New(dbMigration, dbSource)
+	if err != nil {
+		log.Fatal(">>> cannot create new db migration instance: ", err)
+	}
+	if err = migration.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatal(">>> failed to run migrate up: ", err)
+	}
+	log.Println(">>> db migrated successfully")
 }

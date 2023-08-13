@@ -42,7 +42,7 @@ func ValidateFullname(value string) error {
 	if err := ValidateString(value, 3, 100); err != nil {
 		return err
 	}
-	if !regexp.MustCompile(`^[a-zA-Z\\s]+$`).MatchString(value) {
+	if !regexp.MustCompile(`^[a-zA-Z\s]+$`).MatchString(value) {
 		return fmt.Errorf("must contain only letters or spaces")
 	}
 	return nil
