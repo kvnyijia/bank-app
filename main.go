@@ -121,7 +121,8 @@ func runGRPCgatewayServer(config util.Config, store db.Store) {
 	}
 
 	log.Info().Msgf(">>> start gRPC Gateway (HTTP) server at %s", listener.Addr().String())
-	err = http.Serve(listener, mux)
+	mux_with_loggerMiddleware := mygrpc.HttpHandler(mux)
+	err = http.Serve(listener, mux_with_loggerMiddleware)
 	// err = http.Serve(listener, grpcMux)
 	if err != nil {
 		log.Fatal().Err(err).Msg(">>> cannot start gRPC Gateway (HTTP) server")
