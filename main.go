@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"log"
 	"net"
 	"net/http"
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
@@ -26,15 +28,19 @@ import (
 )
 
 func main() {
-	fmt.Println(">>> Running main.go .......")
+	log.Info().Msg(">>> Running main.go .......")
 	config, err := util.LoadConfig(".")
 	if err != nil {
-		log.Fatal("cannot load config:", err)
+		log.Fatal().Err(err).Msg(">>> cannot load config")
+	}
+
+	if config.Environment == "development" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 
 	conn, err := sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {
-		log.Fatal("cannot connect to db:", err)
+		log.Fatal().Err(err).Msg(">>> cannot connect to db")
 	}
 
 	runDBMigration(config.DBMigration, config.DBSource)
@@ -61,22 +67,23 @@ func runGRPCServer(config util.Config, store db.Store) {
 	// gRPC server
 	server, err := mygrpc.NewServer(config, store)
 	if err != nil {
-		log.Fatal(">>> cannot create server", err)
+		log.Fatal().Err(err).Msg(">>> cannot create server")
 	}
 
-	grpcServer := grpc.NewServer()
+	myGrpcLogger := grpc.UnaryInterceptor(mygrpc.GrpcLogger)
+	grpcServer := grpc.NewServer(myGrpcLogger)
 	pb.RegisterBankAppServer(grpcServer, server)
 	reflection.Register(grpcServer)
 
 	listener, err := net.Listen("tcp", config.GRPCServerAddress)
 	if err != nil {
-		log.Fatal(">>> cannot create lisener")
+		log.Fatal().Err(err).Msg(">>> cannot create lisener")
 	}
 
-	log.Printf(">>> start gRPC server at %s", listener.Addr().String())
+	log.Info().Msgf(">>> start gRPC server at %s", listener.Addr().String())
 	err = grpcServer.Serve(listener)
 	if err != nil {
-		log.Fatal(">>> cannot start gRPC server")
+		log.Fatal().Err(err).Msg(">>> cannot start gRPC server")
 	}
 }
 
@@ -84,7 +91,7 @@ func runGRPCgatewayServer(config util.Config, store db.Store) {
 	// gRPC server
 	server, err := mygrpc.NewServer(config, store)
 	if err != nil {
-		log.Fatal(">>> cannot create server", err)
+		log.Fatal().Err(err).Msg(">>> cannot create server")
 	}
 
 	grpcMux := runtime.NewServeMux()
@@ -94,7 +101,7 @@ func runGRPCgatewayServer(config util.Config, store db.Store) {
 
 	err = pb.RegisterBankAppHandlerServer(ctx, grpcMux, server)
 	if err != nil {
-		log.Fatal(">>> cannot register handler server:", err)
+		log.Fatal().Err(err).Msg(">>> cannot register handler server")
 	}
 
 	mux := http.NewServeMux()
@@ -110,24 +117,24 @@ func runGRPCgatewayServer(config util.Config, store db.Store) {
 
 	listener, err := net.Listen("tcp", config.ServerAddress)
 	if err != nil {
-		log.Fatal(">>> cannot create lisener: ", err)
+		log.Fatal().Err(err).Msg(">>> cannot create lisener")
 	}
 
-	log.Printf(">>> start gRPC Gateway (HTTP) server at %s", listener.Addr().String())
+	log.Info().Msgf(">>> start gRPC Gateway (HTTP) server at %s", listener.Addr().String())
 	err = http.Serve(listener, mux)
 	// err = http.Serve(listener, grpcMux)
 	if err != nil {
-		log.Fatal(">>> cannot start gRPC Gateway (HTTP) server: ", err)
+		log.Fatal().Err(err).Msg(">>> cannot start gRPC Gateway (HTTP) server")
 	}
 }
 
 func runDBMigration(dbMigration string, dbSource string) {
 	migration, err := migrate.New(dbMigration, dbSource)
 	if err != nil {
-		log.Fatal(">>> cannot create new db migration instance: ", err)
+		log.Fatal().Err(err).Msg(">>> cannot create new db migration instance")
 	}
 	if err = migration.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatal(">>> failed to run migrate up: ", err)
+		log.Fatal().Err(err).Msg(">>> failed to run migrate up")
 	}
-	log.Println(">>> db migrated successfully")
+	log.Info().Msg(">>> db migrated successfully")
 }
