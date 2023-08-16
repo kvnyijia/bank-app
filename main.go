@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/kvnyijia/bank-app/api"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
 
 	// _ "github.com/kvnyijia/bank-app/doc/statik"
@@ -47,20 +48,24 @@ func main() {
 
 	store := db.NewStore(conn)
 
-	// HTTP server using Gin
-	// server, err := api.NewServer(config, store)
-	// if err != nil {
-	// 	log.Fatal("cannot create server:", err)
-	// }
-
-	// fmt.Println(">>> Running server .......")
-	// err = server.Start(config.ServerAddress)
-	// if err != nil {
-	// 	log.Fatal("cannot start server:", err)
-	// }
+	// runGinServer(config, store)
 
 	go runGRPCgatewayServer(config, store)
 	runGRPCServer(config, store)
+}
+
+func runGinServer(config util.Config, store db.Store) {
+	// HTTP server using Gin
+	server, err := api.NewServer(config, store)
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot create server:")
+	}
+
+	log.Info().Msg(">>> Running server .......")
+	err = server.Start(config.ServerAddress)
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot start server:")
+	}
 }
 
 func runGRPCServer(config util.Config, store db.Store) {
