@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/kvnyijia/bank-app/api"
 	db "github.com/kvnyijia/bank-app/db/sqlc"
+	"github.com/kvnyijia/bank-app/worker"
 
 	// _ "github.com/kvnyijia/bank-app/doc/statik"
 	mygrpc "github.com/kvnyijia/bank-app/grpc"
@@ -48,10 +50,15 @@ func main() {
 
 	store := db.NewStore(conn)
 
-	// runGinServer(config, store)
+	redisOpt := asynq.RedisClientOpt{
+		Addr: config.RedisAddress,
+	}
+	taskDistributor := worker.NewRedisTaskDistributor(redisOpt)
 
-	go runGRPCgatewayServer(config, store)
-	runGRPCServer(config, store)
+	// runGinServer(config, store)
+	go runTaskProcessor(redisOpt, store)
+	go runGRPCgatewayServer(config, store, taskDistributor)
+	runGRPCServer(config, store, taskDistributor)
 }
 
 func runGinServer(config util.Config, store db.Store) {
@@ -68,9 +75,9 @@ func runGinServer(config util.Config, store db.Store) {
 	}
 }
 
-func runGRPCServer(config util.Config, store db.Store) {
+func runGRPCServer(config util.Config, store db.Store, taskDist worker.TaskDistributor) {
 	// gRPC server
-	server, err := mygrpc.NewServer(config, store)
+	server, err := mygrpc.NewServer(config, store, taskDist)
 	if err != nil {
 		log.Fatal().Err(err).Msg(">>> cannot create server")
 	}
@@ -92,9 +99,9 @@ func runGRPCServer(config util.Config, store db.Store) {
 	}
 }
 
-func runGRPCgatewayServer(config util.Config, store db.Store) {
+func runGRPCgatewayServer(config util.Config, store db.Store, taskDist worker.TaskDistributor) {
 	// gRPC server
-	server, err := mygrpc.NewServer(config, store)
+	server, err := mygrpc.NewServer(config, store, taskDist)
 	if err != nil {
 		log.Fatal().Err(err).Msg(">>> cannot create server")
 	}
@@ -143,4 +150,13 @@ func runDBMigration(dbMigration string, dbSource string) {
 		log.Fatal().Err(err).Msg(">>> failed to run migrate up")
 	}
 	log.Info().Msg(">>> db migrated successfully")
+}
+
+func runTaskProcessor(redisOpt asynq.RedisClientOpt, store db.Store) {
+	processor := worker.NewRedisTaskProcessor(redisOpt, store)
+	log.Info().Msg(">>> starting the task processor")
+	err := processor.Start()
+	if err != nil {
+		log.Fatal().Err(err).Msg(">>> fail to start the task processor")
+	}
 }

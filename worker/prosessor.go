@@ -17,8 +17,16 @@ type RedisTaskProcessor struct {
 	store  db.Store
 }
 
-func newRedisTaskProcessor(redisOpt asynq.RedisClientOpt, store db.Store) TaskProcessor {
-	server := asynq.NewServer(redisOpt, asynq.Config{})
+func NewRedisTaskProcessor(redisOpt asynq.RedisClientOpt, store db.Store) TaskProcessor {
+	server := asynq.NewServer(
+		redisOpt,
+		asynq.Config{
+			Queues: map[string]int{
+				"critical": 10,
+				"default":  5,
+			},
+		},
+	)
 	return &RedisTaskProcessor{
 		server: server,
 		store:  store,
