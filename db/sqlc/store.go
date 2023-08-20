@@ -40,6 +40,8 @@ func (store *SQLStore) execTx(ctx context.Context, fn func(*Queries) error) erro
 		}
 		return err
 	}
+	// Mimic high traffic db delay
+	// time.Sleep(5 * time.Second)
 	return tx.Commit()
 }
 
