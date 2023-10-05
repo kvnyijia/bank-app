@@ -19,6 +19,9 @@ migratedown:
 migratedown1:
 	migrate -path db/migration -database "postgresql://root:110604@localhost:5432/simple_bank?sslmode=disable" -verbose down 1
 
+new_migration:
+	migrate create -ext sql -dir db/migration -seq $(name)
+
 db_docs:
 	dbdocs build doc/db.dbml
 
